@@ -1,3 +1,4 @@
+const ws = new WebSocket("ws://" + location.host);
 document.addEventListener('DOMContentLoaded', () => {
   const userGrid = document.querySelector('.grid-user')
   const computerGrid = document.querySelector('.grid-computer')
@@ -37,28 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
       name: 'submarine',
       directions: [
         [0, 1, 2],
-        [0, width, width*2]
+        [0, width, width * 2]
       ]
     },
     {
       name: 'cruiser',
       directions: [
         [0, 1, 2],
-        [0, width, width*2]
+        [0, width, width * 2]
       ]
     },
     {
       name: 'battleship',
       directions: [
         [0, 1, 2, 3],
-        [0, width, width*2, width*3]
+        [0, width, width * 2, width * 3]
       ]
     },
     {
       name: 'carrier',
       directions: [
         [0, 1, 2, 3, 4],
-        [0, width, width*2, width*3, width*4]
+        [0, width, width * 2, width * 3, width * 4]
       ]
     },
   ]
@@ -76,41 +77,147 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Multiplayer
   function startMultiPlayer() {
-    const socket = io();
+    console.log("multiplayer iniciado!")
+    //const socket = io();
 
     // Get your player number
-    socket.on('player-number', num => {
-      if (num === -1) {
-        infoDisplay.innerHTML = "Sorry, the server is full"
-      } else {
-        playerNum = parseInt(num)
-        if(playerNum === 1) currentPlayer = "enemy"
+    /*  socket.on('player-number', num => {
+       if (num === -1) {
+         infoDisplay.innerHTML = "Sorry, the server is full"
+       } else {
+         playerNum = parseInt(num)
+         if(playerNum === 1) currentPlayer = "enemy"
+ 
+         console.log(playerNum)
+ 
+         // Get other player status
+         socket.send('check-players')
+       }
+     }) */
 
-        console.log(playerNum)
 
-        // Get other player status
-        socket.emit('check-players')
+    /* ws.onmessage = (num) => {
+      const json = JSON.parse(num.data);
+      console.log('json', json);
+      if (json.type == 'player-number') {
+        if (json.data === -1) {
+          infoDisplay.innerHTML = "Sorry, the server is full"
+        } else {
+          playerNum = parseInt(json.data)
+          if (playerNum === 1) currentPlayer = "enemy"
+
+          console.log(playerNum)
+
+          // Get other player status
+          //socket.send('check-players')
+          ws.send(JSON.stringify({
+            type: 'check-players',
+            data: '',
+          }))
+        }
       }
-    })
+    } */
+    ws.addEventListener("message", ({ data }) => {
+      const packet = JSON.parse(data);
+
+      switch (packet.type) {
+        case "player-number":
+          if (packet.data === -1) {
+            infoDisplay.innerHTML = "Sorry, the server is full"
+          } else {
+            playerNum = parseInt(packet.data)
+            if (playerNum === 1) currentPlayer = "enemy"
+
+            console.log("playerNum: ",playerNum)
+
+            // Get other player status
+            //socket.send('check-players')
+            ws.send(JSON.stringify({
+              type: 'check-players',
+              data: '',
+            }))
+          }
+          break;
+        case "player-connection":
+          console.log(`Player number ${packet.data} has connected or disconnected`)
+          playerConnectedOrDisconnected(packet.data)
+          break;
+        case "enemy-ready":
+          enemyReady = true
+          playerReady(packet.data)
+          if (ready) {
+            playGameMulti(ws)
+            setupButtons.style.display = 'none'
+          }
+          break;
+        case "check-players":
+          packet.data.forEach((p, i) => {
+            if (p.connected) playerConnectedOrDisconnected(i)
+            if (p.ready) {
+              playerReady(i)
+              if (i !== playerReady) enemyReady = true
+            }
+          })
+          break;
+        case "timeout":
+          infoDisplay.innerHTML = 'You have reached the 10 minute limit'
+          break;
+        case "fire":
+          enemyGo(packet.data)
+          const square = userSquares[packet.data]
+          ws.send(JSON.stringify({
+            type: 'fire-reply',
+            data: square.classList,
+          }))
+          playGameMulti(ws)
+          break;
+        case "fire-reply":
+          revealSquare(packet.data)
+          playGameMulti(ws)
+          break;
+      }
+    });
 
     // Another player has connected or disconnected
-    socket.on('player-connection', num => {
+    /* socket.on('player-connection', num => {
       console.log(`Player number ${num} has connected or disconnected`)
       playerConnectedOrDisconnected(num)
-    })
+    }) */
 
+    /* ws.onmessage = (num) => {
+      const json = JSON.parse(num.data);
+      console.log('json', json.data);
+      if (json.type == 'player-connection') {
+        console.log(`Player number ${json.data} has connected or disconnected`)
+        playerConnectedOrDisconnected(json.data)
+      }
+    }
+ */
     // On enemy ready
-    socket.on('enemy-ready', num => {
+    /* socket.on('enemy-ready', num => {
       enemyReady = true
       playerReady(num)
       if (ready) {
         playGameMulti(socket)
         setupButtons.style.display = 'none'
       }
-    })
+    }) */
+
+    /* ws.onmessage = (num) => {
+      const json = JSON.parse(num.data);
+      console.log('json', json);
+      if (json.type == 'enemy-ready') {
+        enemyReady = true
+        playerReady(json.data)
+        if (ready) {
+          playGameMulti(ws)
+          setupButtons.style.display = 'none'
+        }
+      }
+    } */
 
     // Check player status
-    socket.on('check-players', players => {
+    /* socket.on('check-players', players => {
       players.forEach((p, i) => {
         if(p.connected) playerConnectedOrDisconnected(i)
         if(p.ready) {
@@ -118,47 +225,97 @@ document.addEventListener('DOMContentLoaded', () => {
           if(i !== playerReady) enemyReady = true
         }
       })
-    })
+    }) */
+
+    /* ws.onmessage = (players) => {
+      const json = JSON.parse(players.data);
+      console.log('json', json);
+      if (json.type == 'check-players') {
+        json.data.forEach((p, i) => {
+          if (p.connected) playerConnectedOrDisconnected(i)
+          if (p.ready) {
+            playerReady(i)
+            if (i !== playerReady) enemyReady = true
+          }
+        })
+      }
+    } */
 
     // On Timeout
-    socket.on('timeout', () => {
+    /* socket.on('timeout', () => {
       infoDisplay.innerHTML = 'You have reached the 10 minute limit'
-    })
+    }) */
+
+    /* ws.onmessage = (num) => {
+      const json = JSON.parse(num.data);
+      console.log('json', json);
+      if (json.type == 'timeout') {
+        infoDisplay.innerHTML = 'You have reached the 10 minute limit'
+      }
+    } */
 
     // Ready button click
     startButton.addEventListener('click', () => {
-      if(allShipsPlaced) playGameMulti(socket)
+      if (allShipsPlaced) playGameMulti(ws)
       else infoDisplay.innerHTML = "Please place all ships"
     })
 
     // Setup event listeners for firing
     computerSquares.forEach(square => {
       square.addEventListener('click', () => {
-        if(currentPlayer === 'user' && ready && enemyReady) {
+        if (currentPlayer === 'user' && ready && enemyReady) {
           shotFired = square.dataset.id
-          socket.emit('fire', shotFired)
+          //socket.send('fire', shotFired)
+          ws.send(JSON.stringify({
+            type: 'fire',
+            data: shotFired,
+          }))
         }
       })
     })
 
     // On Fire Received
-    socket.on('fire', id => {
+    /* socket.on('fire', id => {
       enemyGo(id)
       const square = userSquares[id]
-      socket.emit('fire-reply', square.classList)
+      socket.send('fire-reply', square.classList)
       playGameMulti(socket)
-    })
+    }) */
+
+    /* ws.onmessage = (id) => {
+      const json = JSON.parse(id.data);
+      console.log('json', json);
+      if (json.type == 'fire') {
+        enemyGo(json.data)
+        const square = userSquares[json.data]
+        ws.send(JSON.stringify({
+          type: 'fire-reply',
+          data: square.classList,
+        }))
+        playGameMulti(ws)
+      }
+    } */
 
     // On Fire Reply Received
-    socket.on('fire-reply', classList => {
+    /* socket.on('fire-reply', classList => {
       revealSquare(classList)
       playGameMulti(socket)
-    })
+    }) */
+
+    /* ws.onmessage = (classList) => {
+      const json = JSON.parse(classList.data);
+      console.log('json', json);
+      if (json.type == 'fire-reply') {
+        revealSquare(json.data)
+        playGameMulti(ws)
+      }
+    } */
 
     function playerConnectedOrDisconnected(num) {
+      console.log("playerConnecDisconnecFunction: ",num);
       let player = `.p${parseInt(num) + 1}`
       document.querySelector(`${player} .connected`).classList.toggle('active')
-      if(parseInt(num) === playerNum) document.querySelector(player).style.fontWeight = 'bold'
+      if (parseInt(num) === playerNum) document.querySelector(player).style.fontWeight = 'bold'
     }
   }
 
@@ -178,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   //Create Board
   function createBoard(grid, squares) {
-    for (let i = 0; i < width*width; i++) {
+    for (let i = 0; i < width * width; i++) {
       const square = document.createElement('div')
       square.dataset.id = i
       grid.appendChild(square)
@@ -202,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     else generate(ship)
   }
-  
+
 
   //Rotate the ships
   function rotate() {
@@ -272,9 +429,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastShipIndex = parseInt(shipNameWithLastId.substr(-1))
     let shipLastId = lastShipIndex + parseInt(this.dataset.id)
     // console.log(shipLastId)
-    const notAllowedHorizontal = [0,10,20,30,40,50,60,70,80,90,1,11,21,31,41,51,61,71,81,91,2,22,32,42,52,62,72,82,92,3,13,23,33,43,53,63,73,83,93]
-    const notAllowedVertical = [99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60]
-    
+    const notAllowedHorizontal = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91, 2, 22, 32, 42, 52, 62, 72, 82, 92, 3, 13, 23, 33, 43, 53, 63, 73, 83, 93]
+    const notAllowedVertical = [99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65, 64, 63, 62, 61, 60]
+
     let newNotAllowedHorizontal = notAllowedHorizontal.splice(0, 10 * lastShipIndex)
     let newNotAllowedVertical = notAllowedVertical.splice(0, 10 * lastShipIndex)
 
@@ -284,25 +441,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // console.log(shipLastId)
 
     if (isHorizontal && !newNotAllowedHorizontal.includes(shipLastId)) {
-      for (let i=0; i < draggedShipLength; i++) {
+      for (let i = 0; i < draggedShipLength; i++) {
         let directionClass
         if (i === 0) directionClass = 'start'
         if (i === draggedShipLength - 1) directionClass = 'end'
         userSquares[parseInt(this.dataset.id) - selectedShipIndex + i].classList.add('taken', 'horizontal', directionClass, shipClass)
       }
-    //As long as the index of the ship you are dragging is not in the newNotAllowedVertical array! This means that sometimes if you drag the ship by its
-    //index-1 , index-2 and so on, the ship will rebound back to the displayGrid.
+      //As long as the index of the ship you are dragging is not in the newNotAllowedVertical array! This means that sometimes if you drag the ship by its
+      //index-1 , index-2 and so on, the ship will rebound back to the displayGrid.
     } else if (!isHorizontal && !newNotAllowedVertical.includes(shipLastId)) {
-      for (let i=0; i < draggedShipLength; i++) {
+      for (let i = 0; i < draggedShipLength; i++) {
         let directionClass
         if (i === 0) directionClass = 'start'
         if (i === draggedShipLength - 1) directionClass = 'end'
-        userSquares[parseInt(this.dataset.id) - selectedShipIndex + width*i].classList.add('taken', 'vertical', directionClass, shipClass)
+        userSquares[parseInt(this.dataset.id) - selectedShipIndex + width * i].classList.add('taken', 'vertical', directionClass, shipClass)
       }
     } else return
 
     displayGrid.removeChild(draggedShip)
-    if(!displayGrid.querySelector('.ship')) allShipsPlaced = true
+    if (!displayGrid.querySelector('.ship')) allShipsPlaced = true
   }
 
   function dragEnd() {
@@ -312,18 +469,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Game Logic for MultiPlayer
   function playGameMulti(socket) {
     setupButtons.style.display = 'none'
-    if(isGameOver) return
-    if(!ready) {
-      socket.emit('player-ready')
+    if (isGameOver) return
+    if (!ready) {
+      //socket.emit('player-ready')
+      //socket.send('player-ready')
+      socket.send(JSON.stringify({
+        type: 'player-ready',
+        data: true,
+      }))
       ready = true
       playerReady(playerNum)
     }
 
-    if(enemyReady) {
-      if(currentPlayer === 'user') {
+    if (enemyReady) {
+      if (currentPlayer === 'user') {
         turnDisplay.innerHTML = 'Your Go'
       }
-      if(currentPlayer === 'enemy') {
+      if (currentPlayer === 'enemy') {
         turnDisplay.innerHTML = "Enemy's Go"
       }
     }
@@ -339,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isGameOver) return
     if (currentPlayer === 'user') {
       turnDisplay.innerHTML = 'Your Go'
-      computerSquares.forEach(square => square.addEventListener('click', function(e) {
+      computerSquares.forEach(square => square.addEventListener('click', function (e) {
         shotFired = square.dataset.id
         revealSquare(square.classList)
       }))
@@ -373,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     checkForWins()
     currentPlayer = 'enemy'
-    if(gameMode === 'singlePlayer') playGameSingle()
+    if (gameMode === 'singlePlayer') playGameSingle()
   }
 
   let cpuDestroyerCount = 0
@@ -401,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function checkForWins() {
     let enemy = 'computer'
-    if(gameMode === 'multiPlayer') enemy = 'enemy'
+    if (gameMode === 'multiPlayer') enemy = 'enemy'
     if (destroyerCount === 2) {
       infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer`
       destroyerCount = 10
