@@ -85,13 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (packet.type == "player-number") {
         if (packet.data === -1) {
-          infoDisplay.innerHTML = "Sorry, the server is full"
+          infoDisplay.innerHTML = "Desculpe, aconteceu algo de errado."
         } else {
           playerNum = parseInt(packet.data)
           partidaUUID = packet.PID
           if (playerNum === 1) currentPlayer = "enemy"
 
-          console.log("playerNum: ", playerNum)
+          console.log("Seu playerNum: ", playerNum + 1)
 
           // Get other player status
           ws.send(JSON.stringify({
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             break;
           case "timeout":
-            infoDisplay.innerHTML = 'You have reached the 10 minute limit'
+            infoDisplay.innerHTML = 'Você atingiu o timeout de 10 minutos'
             break;
           case "fire":
             enemyGo(packet.data)
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             break;
           case "vitoria-wo":
             wo()
-            console.log("entrou em WO!")
+            //console.log("entrou em WO!")
             break;
         }
       }
@@ -156,8 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
     startButton.addEventListener('click', startButtonCheck)
 
     function startButtonCheck() {
-      if (allShipsPlaced && playersConectados) { playGameMulti(ws); infoDisplay.innerHTML = "Jogadores ok, Embarcações ok!" }
-      else if (playersConectados == false && playerNum == 0) { infoDisplay.innerHTML = "Esperando por um jogador conectar..." }
+      if (allShipsPlaced && playersConectados) { playGameMulti(ws); infoDisplay.innerHTML = "Jogadores conectados, Embarcações ok!" }
+      else if (playersConectados == false && playerNum == 0) { infoDisplay.innerHTML = "Esperando outro jogador conectar..." }
       else { infoDisplay.innerHTML = "Por favor colocar as embarcaçoes!" }
     }
 
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
     function playerConnectedOrDisconnected(num) {
-      console.log("playerConnecDisconnecFunction: ", num);
+      console.log("playerConnectDisconnectFunction: ", num);
       if (parseInt(num) == 1) { playersConectados = true }
       //if (playerNum == 0 && parseInt(num) == 1) { infoDisplay.innerHTML = "conectado!" }
       let player = `.p${parseInt(num) + 1}`
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // console.log(shipLastId)
 
     if (isHorizontal && !newNotAllowedHorizontal.includes(shipLastId)) {
-      console.log("entrou horizontal!")
+      //console.log("entrou horizontal!")
       for (let i = 0; i < draggedShipLength; i++) {
         console.log(i)
         if (userSquares[parseInt(this.dataset.id) - selectedShipIndex + i] == undefined) { console.log("undefined!!!Horizontal"); return; }
@@ -346,10 +346,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (enemyReady) {
       if (currentPlayer === 'user') {
-        turnDisplay.innerHTML = 'Your Go'
+        turnDisplay.innerHTML = "Sua vez"
       }
       if (currentPlayer === 'enemy') {
-        turnDisplay.innerHTML = "Enemy's Go"
+        turnDisplay.innerHTML = "Vez do oponente"
       }
     }
   }
@@ -402,52 +402,53 @@ document.addEventListener('DOMContentLoaded', () => {
   function checkForWins() {
     let enemy = 'enemy'
     if (destroyerCount === 2) {
-      infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer`
+      //infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer`
+      infoDisplay.innerHTML = `Você afundou o destroyer do oponente`
       destroyerCount = 10
     }
     if (submarineCount === 3) {
-      infoDisplay.innerHTML = `You sunk the ${enemy}'s submarine`
+      infoDisplay.innerHTML = `Você afundou o submarino do oponente`
       submarineCount = 10
     }
     if (cruiserCount === 3) {
-      infoDisplay.innerHTML = `You sunk the ${enemy}'s cruiser`
+      infoDisplay.innerHTML = `Você afundou o crusador do oponente`
       cruiserCount = 10
     }
     if (battleshipCount === 4) {
-      infoDisplay.innerHTML = `You sunk the ${enemy}'s battleship`
+      infoDisplay.innerHTML = `Você afundou o navio de batalha do oponente`
       battleshipCount = 10
     }
     if (carrierCount === 5) {
-      infoDisplay.innerHTML = `You sunk the ${enemy}'s carrier`
+      infoDisplay.innerHTML = `Você afundou o porta-aviões do oponente`
       carrierCount = 10
     }
     if (cpuDestroyerCount === 2) {
-      infoDisplay.innerHTML = `${enemy} sunk your destroyer`
+      infoDisplay.innerHTML = `O oponente afundou seu destroyer`
       cpuDestroyerCount = 10
     }
     if (cpuSubmarineCount === 3) {
-      infoDisplay.innerHTML = `${enemy} sunk your submarine`
+      infoDisplay.innerHTML = `O oponente afundou seu submarino`
       cpuSubmarineCount = 10
     }
     if (cpuCruiserCount === 3) {
-      infoDisplay.innerHTML = `${enemy} sunk your cruiser`
+      infoDisplay.innerHTML = `O oponente afundou seu crusador`
       cpuCruiserCount = 10
     }
     if (cpuBattleshipCount === 4) {
-      infoDisplay.innerHTML = `${enemy} sunk your battleship`
+      infoDisplay.innerHTML = `O oponente afundou seu navio de batalha`
       cpuBattleshipCount = 10
     }
     if (cpuCarrierCount === 5) {
-      infoDisplay.innerHTML = `${enemy} sunk your carrier`
+      infoDisplay.innerHTML = `O oponente afundou seu porta-aviões`
       cpuCarrierCount = 10
     }
 
     if ((destroyerCount + submarineCount + cruiserCount + battleshipCount + carrierCount) === 50) {
-      infoDisplay.innerHTML = "YOU WIN"
+      infoDisplay.innerHTML = "Você venceu! (Atualize a página para jogar novamente)"
       gameOver()
     }
     if ((cpuDestroyerCount + cpuSubmarineCount + cpuCruiserCount + cpuBattleshipCount + cpuCarrierCount) === 50) {
-      infoDisplay.innerHTML = `${enemy.toUpperCase()} WINS`
+      infoDisplay.innerHTML = `Você perdeu, mais sorte na próxima (Atualize a página para jogar novamente)`
       gameOver()
     }
   }
@@ -455,7 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function gameOver() {
     isGameOver = true
     finalizarPartida()
-    //startButton.removeEventListener('click', startButtonCheck())
   }
 
   function finalizarPartida() {
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function wo() {
-    infoDisplay.innerHTML = "YOU WIN"
+    infoDisplay.innerHTML = "Você venceu por W.O. (Atualize a página para jogar novamente)"
     gameOver()
     
   }

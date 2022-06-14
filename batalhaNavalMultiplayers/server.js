@@ -5,10 +5,10 @@ const path = require('path')
 const PORT = process.env.PORT || 3000
 const app = express()
 
-// Set static folder
+// Definir pasta static
 app.use(express.static(path.join(__dirname, "public")))
 
-// Start server
+// Iniciar servidor
 const server = app.listen(PORT, () => {
   console.log(`App Express is running!, port: ${PORT}`);
 })
@@ -22,13 +22,12 @@ var size = Object.keys(partidas).length;
 
 wss.on('connection', socket => {
   let playerIndex = -1;
-  //[websocketAtual, isReady]
   const jogador = [socket, null]
   clients.push(jogador);
   const index = clients.indexOf(jogador);
   playerIndex = index;
 
-  // Tell the connecting client what player number they are
+  // Informar para o jogador que se conectou qual o seu numero
   socket.send(JSON.stringify({
     type: 'player-number',
     data: playerIndex,
@@ -48,7 +47,7 @@ wss.on('connection', socket => {
     console.log(['ws', e[1]])
   });
 
-  // Tell eveyone what player number just connected
+  // Informar para o outro jogador qual o numero do jogador que acabou de conectar
   wss.clients.forEach(function each(client) {
     if (client !== socket && client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({
@@ -71,7 +70,7 @@ wss.on('connection', socket => {
     console.log("qtd Elementos partidas: ", size)
   }
 
-  // Handle Diconnect
+  // Tratar desconexão
   socket.on('close', () => {
     if (partidas[pp] !== undefined) {
       wss.clients.forEach(function each(client) {
@@ -91,22 +90,7 @@ wss.on('connection', socket => {
       }
     }
 
-    //Desconexão
-
-    /* const index = clients.indexOf(jogador);
-    if (index > -1) {
-        clients.splice(index, 1);
-    } */
-
     console.log(`Player ${playerIndex} disconnected`)
-    //clients[playerIndex] = null
-
-    //Tell everyone what player numbe just disconnected
-    //socket.broadcast.emit('player-connection', playerIndex)
-    /* socket.send(JSON.stringify({
-      type: 'player-connection',
-      data: playerIndex,
-    })) */
 
     wss.clients.forEach(function each(client) {
       if (client !== socket && client.readyState === WebSocket.OPEN) {
@@ -124,7 +108,7 @@ wss.on('connection', socket => {
     });
   })
 
-  // On Ready
+  // Tratar mensagens do cliente
   socket.on("message", (data) => {
     let t = false
     const packet = JSON.parse(data);
@@ -156,7 +140,6 @@ wss.on('connection', socket => {
     }
 
     if(packet.type == "finalize-partida"){
-          //finaliza
           socket.close()
     }
 
@@ -181,7 +164,7 @@ wss.on('connection', socket => {
           id = packet.data;
           console.log(`Shot fired from ${playerIndex}`, id)
 
-          // Emit the move to the other player
+          // Envie o movimento para o outro jogador
           wss.clients.forEach(function each(client) {
             if (client !== socket && client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify({
@@ -194,8 +177,9 @@ wss.on('connection', socket => {
           break;
         case "fire-reply":
           square = packet.data;
-          console.log("fire-replay-servidor-square: ", square)
-          // Forward the reply to the other player
+          console.log("fire-reply-servidor-square: ", square)
+
+          // Encaminhe a resposta para o outro jogador
           wss.clients.forEach(function each(client) {
             if (client !== socket && client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify({
@@ -210,18 +194,12 @@ wss.on('connection', socket => {
     }
   });
 
-  // Timeout connection
+  // Tratar timeout
   setTimeout(() => {
-    /* const index = clients.indexOf(jogador);
-    if (index > -1) {
-        clients.splice(index, 1);
-    } */
-    //clients[playerIndex] = null
-    //socket.send('timeout')
     socket.send(JSON.stringify({
       type: 'timeout',
       data: playerIndex,
     }))
     socket.close()
-  }, 600000) // 10 minute limit per player
+  }, 300000) // limite de 5 minutos por jogador
 })
