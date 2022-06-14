@@ -72,7 +72,7 @@ body {
 .taken,
 .ship {
   position: relative;
-  background-color: hsl(0, 0%, 80%);
+  /* background-color: hsl(0, 0%, 80%); */
 }
 
 .taken.horizontal::before {
@@ -106,13 +106,35 @@ body {
   border: 7px solid hsla(0, 0%, 100%, .2);
 }
 
+.battleship-grid div.submarine{
+  background-color: green;
+}
+
+.battleship-grid div.destroyer{
+  background-color: black;
+}
+
+.battleship-grid div.cruiser{
+  background-color: blue;
+}
+
+.battleship-grid div.battleship{
+  background-color: blueviolet;
+}
+
+.battleship-grid div.carrier{
+  background-color: rgba(255, 255, 0, 0.671) !important;
+}
+
 .destroyer-container {
   --width: 2;
+  background-color: black;
 }
 
 .destroyer-container-vertical {
   --height: 2;
   --width: 1;
+  background-color: black;
 }
 
 .submarine-container,
@@ -120,28 +142,49 @@ body {
   --width: 3;
 }
 
+.cruiser-container{
+  background-color: blue;
+}
+
+.submarine-container{
+  background-color: green;
+}
+
+
 .submarine-container-vertical,
 .cruiser-container-vertical {
   --height: 3;
   --width: 1;
 }
 
+.cruiser-container-vertical{
+  background-color: blue;
+}
+
+.submarine-container-vertical{
+  background-color: green;
+}
+
 .battleship-container {
   --width: 4;
+  background-color: blueviolet;
 }
 
 .battleship-container-vertical {
   --height: 4;
   --width: 1;
+  background-color: blueviolet;
 }
 
 .carrier-container {
   --width: 5;
+  background-color: yellow;
 }
 
 .carrier-container-vertical {
   --height: 5;
   --width: 1;
+  background-color: yellow;
 }
 
 .hidden-info {

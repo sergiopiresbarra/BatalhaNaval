@@ -1,7 +1,7 @@
 const ws = new WebSocket("ws://" + location.host);
 document.addEventListener('DOMContentLoaded', () => {
   const userGrid = document.querySelector('.grid-user')
-  const computerGrid = document.querySelector('.grid-computer')
+  const oponentGrid = document.querySelector('.grid-computer')
   const displayGrid = document.querySelector('.grid-display')
   const ships = document.querySelectorAll('.ship')
   const destroyer = document.querySelector('.destroyer-container')
@@ -15,71 +15,70 @@ document.addEventListener('DOMContentLoaded', () => {
   const infoDisplay = document.querySelector('#info')
   const setupButtons = document.getElementById('setup-buttons')
   const userSquares = []
-  const computerSquares = []
+  const oponentSquares = []
   let isHorizontal = true
   let isGameOver = false
-  let currentPlayer = 'user'
-  const width = 10
+  let jogadorAtual = 'user'
+  const tamanho = 10
   let playerNum = 0
   let partidaUUID = ''
-  let ready = false
-  let enemyReady = false
-  let allShipsPlaced = false
-  let shotFired = -1
+  let pronto = false
+  let oponentePronto = false
+  let todosNaviosPosicionados = false
+  let tiroRealizado = -1
   let playersConectados = false
-  //Ships
-  const shipArray = [
+  
+  //Navios
+  const ArrayNavios = [
     {
       name: 'destroyer',
       directions: [
         [0, 1],
-        [0, width]
+        [0, tamanho]
       ]
     },
     {
       name: 'submarine',
       directions: [
         [0, 1, 2],
-        [0, width, width * 2]
+        [0, tamanho, tamanho * 2]
       ]
     },
     {
       name: 'cruiser',
       directions: [
         [0, 1, 2],
-        [0, width, width * 2]
+        [0, tamanho, tamanho * 2]
       ]
     },
     {
       name: 'battleship',
       directions: [
         [0, 1, 2, 3],
-        [0, width, width * 2, width * 3]
+        [0, tamanho, tamanho * 2, tamanho * 3]
       ]
     },
     {
       name: 'carrier',
       directions: [
         [0, 1, 2, 3, 4],
-        [0, width, width * 2, width * 3, width * 4]
+        [0, tamanho, tamanho * 2, tamanho * 3, tamanho * 4]
       ]
     },
   ]
 
-  createBoard(userGrid, userSquares)
-  createBoard(computerGrid, computerSquares)
+  criarTabuleiro(userGrid, userSquares)
+  criarTabuleiro(oponentGrid, oponentSquares)
 
-  startMultiPlayer()
-  // Multiplayer
+  iniciarJogo()
+
   let destroyerCount = 0
   let submarineCount = 0
   let cruiserCount = 0
   let battleshipCount = 0
   let carrierCount = 0
 
-  function startMultiPlayer() {
-    console.log("multiplayer iniciado!")
-
+  function iniciarJogo() {
     ws.addEventListener("message", ({ data }) => {
       const packet = JSON.parse(data);
 
@@ -89,11 +88,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           playerNum = parseInt(packet.data)
           partidaUUID = packet.PID
-          if (playerNum === 1) currentPlayer = "enemy"
+          if (playerNum === 1) jogadorAtual = "enemy"
 
           console.log("Seu playerNum: ", playerNum + 1)
 
-          // Get other player status
+          // Pegar o status do outro jogador
           ws.send(JSON.stringify({
             type: 'check-players',
             data: '',
@@ -103,27 +102,27 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (partidaUUID == packet.PID) {
         switch (packet.type) {
-          // Another player has connected or disconnected
+          // Outro jogador se conectou ou se desconectou
           case "player-connection":
-            console.log(`Player number ${packet.data} has connected or disconnected`)
-            playerConnectedOrDisconnected(packet.data)
+            console.log(`Jogador numbero ${packet.data} se conectou ou se desconectou`)
+            jogadorConectouOuDisconectou(packet.data)
             break;
-          // On enemy ready
+          // Quando o oponente esta pronto
           case "enemy-ready":
-            enemyReady = true
-            playerReady(packet.data)
-            if (ready) {
-              playGameMulti(ws)
+            oponentePronto = true
+            jogadorPronto(packet.data)
+            if (pronto) {
+              comecarPartida(ws)
               setupButtons.style.display = 'none'
             }
             break;
-          // Check player status
+          // Checar os status dos jogadores
           case "check-players":
             packet.data.forEach((p, i) => {
-              if (p.connected) playerConnectedOrDisconnected(i)
+              if (p.connected) jogadorConectouOuDisconectou(i)
               if (p.ready) {
-                playerReady(i)
-                if (i !== playerReady) enemyReady = true
+                jogadorPronto(i)
+                if (i !== jogadorPronto) oponentePronto = true
               }
             })
             break;
@@ -131,64 +130,61 @@ document.addEventListener('DOMContentLoaded', () => {
             infoDisplay.innerHTML = 'Você atingiu o timeout de 10 minutos'
             break;
           case "fire":
-            enemyGo(packet.data)
+            vezOponente(packet.data)
             const square = userSquares[packet.data]
             ws.send(JSON.stringify({
               type: 'fire-reply',
               data: square.classList,
               PID: partidaUUID,
             }))
-            playGameMulti(ws)
+            comecarPartida(ws)
             break;
           case "fire-reply":
-            revealSquare(packet.data)
-            playGameMulti(ws)
+            revelarQuadrado(packet.data)
+            comecarPartida(ws)
             break;
           case "vitoria-wo":
             wo()
-            //console.log("entrou em WO!")
             break;
         }
       }
     });
 
-    // Ready button click
-    startButton.addEventListener('click', startButtonCheck)
+    // Clique no botão de iniciar
+    startButton.addEventListener('click', checarBotaoStart)
 
-    function startButtonCheck() {
-      if (allShipsPlaced && playersConectados) { playGameMulti(ws); infoDisplay.innerHTML = "Jogadores conectados, Embarcações ok!" }
+    function checarBotaoStart() {
+      if (todosNaviosPosicionados && playersConectados) { comecarPartida(ws); infoDisplay.innerHTML = "Jogadores conectados, Embarcações ok!" }
       else if (playersConectados == false && playerNum == 0) { infoDisplay.innerHTML = "Esperando outro jogador conectar..." }
       else { infoDisplay.innerHTML = "Por favor colocar as embarcaçoes!" }
     }
 
-    // Setup event listeners for firing
-    computerSquares.forEach(square => {
+    // Configure event listeners para detectar tiros
+    oponentSquares.forEach(square => {
       square.addEventListener('click', () => {
-        if (currentPlayer === 'user' && ready && enemyReady) {
-          shotFired = square.dataset.id
-          //socket.send('fire', shotFired)
+        if (jogadorAtual === 'user' && pronto && oponentePronto) {
+          tiroRealizado = square.dataset.id
           ws.send(JSON.stringify({
             type: 'fire',
-            data: shotFired,
+            data: tiroRealizado,
             PID: partidaUUID,
           }))
         }
       })
     })
 
-    function playerConnectedOrDisconnected(num) {
+    function jogadorConectouOuDisconectou(num) {
       console.log("playerConnectDisconnectFunction: ", num);
       if (parseInt(num) == 1) { playersConectados = true }
-      //if (playerNum == 0 && parseInt(num) == 1) { infoDisplay.innerHTML = "conectado!" }
       let player = `.p${parseInt(num) + 1}`
       document.querySelector(`${player} .connected`).classList.toggle('active')
       if (parseInt(num) === playerNum) document.querySelector(player).style.fontWeight = 'bold'
     }
   }
 
-  //Create Board
-  function createBoard(grid, squares) {
-    for (let i = 0; i < width * width; i++) {
+  //Criar Tabuleiro
+  function criarTabuleiro(grid, squares) {
+    for (let i = 0; i < tamanho * tamanho; i++) {
       const square = document.createElement('div')
       square.dataset.id = i
       grid.appendChild(square)
@@ -196,24 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  //Draw the computers ships in random locations
-  function generate(ship) {
-    let randomDirection = Math.floor(Math.random() * ship.directions.length)
-    let current = ship.directions[randomDirection]
-    if (randomDirection === 0) direction = 1
-    if (randomDirection === 1) direction = 10
-    let randomStart = Math.abs(Math.floor(Math.random() * computerSquares.length - (ship.directions[0].length * direction)))
-
-    const isTaken = current.some(index => computerSquares[randomStart + index].classList.contains('taken'))
-    const isAtRightEdge = current.some(index => (randomStart + index) % width === width - 1)
-    const isAtLeftEdge = current.some(index => (randomStart + index) % width === 0)
-
-    if (!isTaken && !isAtRightEdge && !isAtLeftEdge) current.forEach(index => computerSquares[randomStart + index].classList.add('taken', ship.name))
-
-    else generate(ship)
-  }
-
-  //Rotate the ships
+  //Rotacionar os navios
   function rotate() {
     if (isHorizontal) {
       destroyer.classList.toggle('destroyer-container-vertical')
@@ -222,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
       battleship.classList.toggle('battleship-container-vertical')
       carrier.classList.toggle('carrier-container-vertical')
       isHorizontal = false
-      // console.log(isHorizontal)
       return
     }
     if (!isHorizontal) {
@@ -232,13 +210,12 @@ document.addEventListener('DOMContentLoaded', () => {
       battleship.classList.toggle('battleship-container-vertical')
       carrier.classList.toggle('carrier-container-vertical')
       isHorizontal = true
-      // console.log(isHorizontal)
       return
     }
   }
   rotateButton.addEventListener('click', rotate)
 
-  //move around user ship
+  //Mover o navio do usuario (arrastar)
   ships.forEach(ship => ship.addEventListener('dragstart', dragStart))
   userSquares.forEach(square => square.addEventListener('dragstart', dragStart))
   userSquares.forEach(square => square.addEventListener('dragover', dragOver))
@@ -253,13 +230,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   ships.forEach(ship => ship.addEventListener('mousedown', (e) => {
     selectedShipNameWithIndex = e.target.id
-    // console.log(selectedShipNameWithIndex)
   }))
 
   function dragStart() {
     draggedShip = this
     draggedShipLength = this.childNodes.length
-    // console.log(draggedShip)
   }
 
   function dragOver(e) {
@@ -271,16 +246,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function dragLeave() {
-    // console.log('drag leave')
   }
 
   function dragDrop() {
     let shipNameWithLastId = draggedShip.lastChild.id
     let shipClass = shipNameWithLastId.slice(0, -2)
-    // console.log(shipClass)
     let lastShipIndex = parseInt(shipNameWithLastId.substr(-1))
     let shipLastId = lastShipIndex + parseInt(this.dataset.id)
-    // console.log(shipLastId)
     const notAllowedHorizontal = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 1, 11, 21, 31, 41, 51, 61, 71, 81, 91, 2, 22, 32, 42, 52, 62, 72, 82, 92, 3, 13, 23, 33, 43, 53, 63, 73, 83, 93]
     const notAllowedVertical = [99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65, 64, 63, 62, 61, 60]
 
@@ -290,10 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedShipIndex = parseInt(selectedShipNameWithIndex.substr(-1))
 
     shipLastId = shipLastId - selectedShipIndex
-    // console.log(shipLastId)
 
     if (isHorizontal && !newNotAllowedHorizontal.includes(shipLastId)) {
-      //console.log("entrou horizontal!")
       for (let i = 0; i < draggedShipLength; i++) {
         console.log(i)
         if (userSquares[parseInt(this.dataset.id) - selectedShipIndex + i] == undefined) { console.log("undefined!!!Horizontal"); return; }
@@ -304,11 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (i === draggedShipLength - 1) directionClass = 'end'
         userSquares[parseInt(this.dataset.id) - selectedShipIndex + i].classList.add('taken', 'horizontal', directionClass, shipClass)
       }
-      //As long as the index of the ship you are dragging is not in the newNotAllowedVertical array! This means that sometimes if you drag the ship by its
-      //index-1 , index-2 and so on, the ship will rebound back to the displayGrid.
+
+      //Verifica se o navio está dentro da grid, se não estiver o navio voltará para a posição original
     } else if (!isHorizontal && !newNotAllowedVertical.includes(shipLastId)) {
       for (let i = 0; i < draggedShipLength; i++) {
-        if (userSquares[parseInt(this.dataset.id) - selectedShipIndex + width * i] == undefined) { console.log("undefined!!!Vertical"); return; }
+        if (userSquares[parseInt(this.dataset.id) - selectedShipIndex + tamanho * i] == undefined) { console.log("undefined!!!Vertical"); return; }
       }
       for (let i = 0; i < draggedShipLength; i++) {
         let directionClass
@@ -317,52 +287,51 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("directionClass:", directionClass)
         console.log("parseInt:", parseInt(this.dataset.id))
         console.log("selectedShip:", selectedShipIndex)
-        console.log("classlist:", userSquares[parseInt(this.dataset.id) - selectedShipIndex + width * i])
-        userSquares[parseInt(this.dataset.id) - selectedShipIndex + width * i].classList.add('taken', 'vertical', directionClass, shipClass)
+        console.log("classlist:", userSquares[parseInt(this.dataset.id) - selectedShipIndex + tamanho * i])
+        userSquares[parseInt(this.dataset.id) - selectedShipIndex + tamanho * i].classList.add('taken', 'vertical', directionClass, shipClass)
       }
     } else return
 
     displayGrid.removeChild(draggedShip)
-    if (!displayGrid.querySelector('.ship')) allShipsPlaced = true
+    if (!displayGrid.querySelector('.ship')) todosNaviosPosicionados = true
   }
 
   function dragEnd() {
-    // console.log('dragend')
   }
 
-  // Game Logic for MultiPlayer
-  function playGameMulti(socket) {
+  // Trata de começar a partida
+  function comecarPartida(socket) {
     setupButtons.style.display = 'none'
     if (isGameOver) return
-    if (!ready) {
+    if (!pronto) {
       socket.send(JSON.stringify({
         type: 'player-ready',
         data: true,
         PID: partidaUUID,
       }))
-      ready = true
-      playerReady(playerNum)
+      pronto = true
+      jogadorPronto(playerNum)
     }
 
-    if (enemyReady) {
-      if (currentPlayer === 'user') {
+    if (oponentePronto) {
+      if (jogadorAtual === 'user') {
         turnDisplay.innerHTML = "Sua vez"
       }
-      if (currentPlayer === 'enemy') {
+      if (jogadorAtual === 'enemy') {
         turnDisplay.innerHTML = "Vez do oponente"
       }
     }
   }
 
-  function playerReady(num) {
+  function jogadorPronto(num) {
     let player = `.p${parseInt(num) + 1}`
     document.querySelector(`${player} .ready`).classList.toggle('active')
   }
 
-  function revealSquare(classList) {
-    const enemySquare = computerGrid.querySelector(`div[data-id='${shotFired}']`)
+  function revelarQuadrado(classList) {
+    const enemySquare = oponentGrid.querySelector(`div[data-id='${tiroRealizado}']`)
     const obj = Object.values(classList)
-    if (!enemySquare.classList.contains('boom') && currentPlayer === 'user' && !isGameOver) {
+    if (!enemySquare.classList.contains('boom') && jogadorAtual === 'user' && !isGameOver) {
       if (obj.includes('destroyer')) ++destroyerCount
       if (obj.includes('submarine')) ++submarineCount
       if (obj.includes('cruiser')) ++cruiserCount
@@ -374,35 +343,33 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       enemySquare.classList.add('miss')
     }
-    checkForWins()
-    currentPlayer = 'enemy'
+    checarPorVitorias()
+    jogadorAtual = 'enemy'
   }
 
-  let cpuDestroyerCount = 0
-  let cpuSubmarineCount = 0
-  let cpuCruiserCount = 0
-  let cpuBattleshipCount = 0
-  let cpuCarrierCount = 0
+  let oponentDestroyerCount = 0
+  let oponentSubmarineCount = 0
+  let oponentCruiserCount = 0
+  let oponentBattleshipCount = 0
+  let oponentCarrierCount = 0
 
-  function enemyGo(square) {
+  function vezOponente(square) {
     if (!userSquares[square].classList.contains('boom')) {
       const hit = userSquares[square].classList.contains('taken')
       userSquares[square].classList.add(hit ? 'boom' : 'miss')
-      if (userSquares[square].classList.contains('destroyer')) ++cpuDestroyerCount
-      if (userSquares[square].classList.contains('submarine')) ++cpuSubmarineCount
-      if (userSquares[square].classList.contains('cruiser')) ++cpuCruiserCount
-      if (userSquares[square].classList.contains('battleship')) ++cpuBattleshipCount
-      if (userSquares[square].classList.contains('carrier')) ++cpuCarrierCount
-      checkForWins()
+      if (userSquares[square].classList.contains('destroyer')) ++oponentDestroyerCount
+      if (userSquares[square].classList.contains('submarine')) ++oponentSubmarineCount
+      if (userSquares[square].classList.contains('cruiser')) ++oponentCruiserCount
+      if (userSquares[square].classList.contains('battleship')) ++oponentBattleshipCount
+      if (userSquares[square].classList.contains('carrier')) ++oponentCarrierCount
+      checarPorVitorias()
     }
-    currentPlayer = 'user'
+    jogadorAtual = 'user'
     turnDisplay.innerHTML = 'Your Go'
   }
 
-  function checkForWins() {
-    let enemy = 'enemy'
+  function checarPorVitorias() {
     if (destroyerCount === 2) {
-      //infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer`
       infoDisplay.innerHTML = `Você afundou o destroyer do oponente`
       destroyerCount = 10
     }
@@ -422,32 +389,32 @@ document.addEventListener('DOMContentLoaded', () => {
       infoDisplay.innerHTML = `Você afundou o porta-aviões do oponente`
       carrierCount = 10
     }
-    if (cpuDestroyerCount === 2) {
+    if (oponentDestroyerCount === 2) {
       infoDisplay.innerHTML = `O oponente afundou seu destroyer`
-      cpuDestroyerCount = 10
+      oponentDestroyerCount = 10
     }
-    if (cpuSubmarineCount === 3) {
+    if (oponentSubmarineCount === 3) {
       infoDisplay.innerHTML = `O oponente afundou seu submarino`
-      cpuSubmarineCount = 10
+      oponentSubmarineCount = 10
     }
-    if (cpuCruiserCount === 3) {
+    if (oponentCruiserCount === 3) {
       infoDisplay.innerHTML = `O oponente afundou seu crusador`
-      cpuCruiserCount = 10
+      oponentCruiserCount = 10
     }
-    if (cpuBattleshipCount === 4) {
+    if (oponentBattleshipCount === 4) {
       infoDisplay.innerHTML = `O oponente afundou seu navio de batalha`
-      cpuBattleshipCount = 10
+      oponentBattleshipCount = 10
     }
-    if (cpuCarrierCount === 5) {
+    if (oponentCarrierCount === 5) {
       infoDisplay.innerHTML = `O oponente afundou seu porta-aviões`
-      cpuCarrierCount = 10
+      oponentCarrierCount = 10
     }
 
     if ((destroyerCount + submarineCount + cruiserCount + battleshipCount + carrierCount) === 50) {
       infoDisplay.innerHTML = "Você venceu! (Atualize a página para jogar novamente)"
       gameOver()
     }
-    if ((cpuDestroyerCount + cpuSubmarineCount + cpuCruiserCount + cpuBattleshipCount + cpuCarrierCount) === 50) {
+    if ((oponentDestroyerCount + oponentSubmarineCount + oponentCruiserCount + oponentBattleshipCount + oponentCarrierCount) === 50) {
       infoDisplay.innerHTML = `Você perdeu, mais sorte na próxima (Atualize a página para jogar novamente)`
       gameOver()
     }
@@ -468,6 +435,5 @@ document.addEventListener('DOMContentLoaded', () => {
   function wo() {
     infoDisplay.innerHTML = "Você venceu por W.O. (Atualize a página para jogar novamente)"
     gameOver()
-    
   }
 })
